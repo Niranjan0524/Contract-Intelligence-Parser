@@ -1,61 +1,81 @@
 import { useState } from 'react';
+import ContractUpload from './ContractUpload';
+import ContractList from './ContractList';
+import ContractDetail from './ContractDetail';
 
 const Dashboard = ({ user }) => {
-  // Sample data for recent activity and quick actions
-  const [recentActivity] = useState([
+  const [currentView, setCurrentView] = useState('overview'); // 'overview', 'upload', 'list', 'detail'
+  const [selectedContract, setSelectedContract] = useState(null);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+  const handleUploadSuccess = (result) => {
+    console.log('Upload successful:', result);
+    setRefreshTrigger(prev => prev + 1);
+    // Show success message or redirect to list view
+    setCurrentView('list');
+  };
+
+  const handleContractSelect = (contract) => {
+    setSelectedContract(contract);
+    setCurrentView('detail');
+  };
+
+  const handleBackToList = () => {
+    setCurrentView('list');
+    setSelectedContract(null);
+  };
+
+  // Sample data for overview stats
+  const stats = [
     {
-      id: 1,
-      action: 'Contract Analyzed',
-      document: 'Service Agreement #123',
-      time: '2 hours ago',
-      status: 'completed',
+      label: 'Total Contracts',
+      value: '48',
+      change: '+12%',
+      changeType: 'positive',
       icon: (
-        <svg className="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+        <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
         </svg>
       ),
     },
     {
-      id: 2,
-      action: 'New Contract Uploaded',
-      document: 'Lease Agreement #456',
-      time: '5 hours ago',
-      status: 'processing',
+      label: 'Processed Today',
+      value: '7',
+      change: '+3',
+      changeType: 'positive',
       icon: (
-        <svg className="w-5 h-5 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
-          <path fillRule="evenodd" d="M4 4a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2H4zm0 2h12v8H4V6z" clipRule="evenodd" />
+        <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
         </svg>
       ),
     },
     {
-      id: 3,
-      action: 'Risk Assessment',
-      document: 'Employment Contract #789',
-      time: '1 day ago',
-      status: 'completed',
+      label: 'High Risk Items',
+      value: '3',
+      change: '-2',
+      changeType: 'negative',
       icon: (
-        <svg className="w-5 h-5 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
-          <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+        <svg className="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 19c-.77.833.192 2.5 1.732 2.5z" />
         </svg>
       ),
     },
     {
-      id: 4,
-      action: 'Contract Reviewed',
-      document: 'Purchase Order #321',
-      time: '2 days ago',
-      status: 'completed',
+      label: 'Accuracy Rate',
+      value: '94%',
+      change: '+2%',
+      changeType: 'positive',
       icon: (
-        <svg className="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+        <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
       ),
     },
-  ]);
+  ];
 
   const quickActions = [
     {
-      name: 'Upload New Contract',
+      name: 'Upload Contract',
       description: 'Upload and analyze a new contract document',
       icon: (
         <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -64,158 +84,144 @@ const Dashboard = ({ user }) => {
       ),
       bgColor: 'bg-blue-50',
       hoverColor: 'hover:bg-blue-100',
+      action: () => setCurrentView('upload'),
     },
     {
-      name: 'View Analytics',
-      description: 'Check your contract analysis statistics',
+      name: 'View All Contracts',
+      description: 'Browse and search through all contracts',
       icon: (
         <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
         </svg>
       ),
       bgColor: 'bg-green-50',
       hoverColor: 'hover:bg-green-100',
+      action: () => setCurrentView('list'),
     },
     {
-      name: 'Generate Report',
-      description: 'Create a comprehensive contract analysis report',
+      name: 'Analytics Dashboard',
+      description: 'View processing statistics and insights',
       icon: (
         <svg className="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
         </svg>
       ),
       bgColor: 'bg-purple-50',
       hoverColor: 'hover:bg-purple-100',
+      action: () => console.log('Analytics coming soon'),
     },
     {
-      name: 'Manage Templates',
-      description: 'Create and manage contract templates',
+      name: 'Export Data',
+      description: 'Export contract data and analysis results',
       icon: (
         <svg className="w-8 h-8 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
         </svg>
       ),
       bgColor: 'bg-orange-50',
       hoverColor: 'hover:bg-orange-100',
+      action: () => console.log('Export coming soon'),
     },
   ];
 
-  const stats = [
-    {
-      label: 'Total Contracts',
-      value: '48',
-      change: '+12%',
-      changeType: 'positive',
-    },
-    {
-      label: 'Processed Today',
-      value: '7',
-      change: '+3',
-      changeType: 'positive',
-    },
-    {
-      label: 'High Risk Items',
-      value: '3',
-      change: '-2',
-      changeType: 'negative',
-    },
-    {
-      label: 'Success Rate',
-      value: '94%',
-      change: '+2%',
-      changeType: 'positive',
-    },
-  ];
+  if (currentView === 'detail' && selectedContract) {
+    return (
+      <div className="flex-1 bg-gray-50 min-h-screen p-4 sm:p-6 lg:p-8">
+        <ContractDetail 
+          contract={selectedContract} 
+          onBack={handleBackToList}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 bg-gray-50 min-h-screen">
-      {/* Welcome Section */}
+      {/* Navigation Bar */}
       <div className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
-          <div className="md:flex md:items-center md:justify-between">
-            <div className="flex-1 min-w-0">
-              <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">
-                Welcome back, {user?.name || 'User'}!
-              </h1>
-              <p className="mt-1 text-sm text-gray-500">
-                Here's what's happening with your contracts today.
-              </p>
-            </div>
-            <div className="mt-4 md:mt-0 md:ml-4">
-              <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200">
-                Upload New Contract
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            <nav className="flex space-x-8">
+              <button
+                onClick={() => setCurrentView('overview')}
+                className={`px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                  currentView === 'overview'
+                    ? 'bg-blue-100 text-blue-700'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                Overview
               </button>
+              <button
+                onClick={() => setCurrentView('upload')}
+                className={`px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                  currentView === 'upload'
+                    ? 'bg-blue-100 text-blue-700'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                Upload
+              </button>
+              <button
+                onClick={() => setCurrentView('list')}
+                className={`px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                  currentView === 'list'
+                    ? 'bg-blue-100 text-blue-700'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                Contracts
+              </button>
+            </nav>
+            
+            <div className="text-sm text-gray-600">
+              Welcome back, <span className="font-medium">{user?.name || 'User'}</span>
             </div>
           </div>
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          {stats.map((stat, index) => (
-            <div key={index} className="bg-white p-6 rounded-lg shadow-sm border">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">{stat.label}</p>
-                  <p className="text-2xl font-bold text-gray-900 mt-2">{stat.value}</p>
-                </div>
-                <div className={`text-sm font-medium ${
-                  stat.changeType === 'positive' ? 'text-green-600' : 'text-red-600'
-                }`}>
-                  {stat.change}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Recent Activity */}
-          <div className="bg-white rounded-lg shadow-sm border">
-            <div className="px-6 py-4 border-b">
-              <h2 className="text-lg font-semibold text-gray-900">Recent Activity</h2>
-            </div>
-            <div className="p-6">
-              <div className="space-y-4">
-                {recentActivity.map((activity) => (
-                  <div key={activity.id} className="flex items-start space-x-3">
-                    <div className="flex-shrink-0 mt-1">
-                      {activity.icon}
+        {currentView === 'overview' && (
+          <div className="space-y-6">
+            {/* Stats Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {stats.map((stat, index) => (
+                <div key={index} className="bg-white rounded-lg shadow-sm border p-6">
+                  <div className="flex items-center">
+                    <div className="flex-shrink-0">
+                      {stat.icon}
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900">
-                        {activity.action}
-                      </p>
-                      <p className="text-sm text-gray-500">{activity.document}</p>
-                    </div>
-                    <div className="flex-shrink-0 text-xs text-gray-400">
-                      {activity.time}
+                    <div className="ml-5 w-0 flex-1">
+                      <dl>
+                        <dt className="text-sm font-medium text-gray-500 truncate">
+                          {stat.label}
+                        </dt>
+                        <dd className="flex items-baseline">
+                          <div className="text-2xl font-semibold text-gray-900">
+                            {stat.value}
+                          </div>
+                          <div className={`ml-2 flex items-baseline text-sm font-semibold ${
+                            stat.changeType === 'positive' ? 'text-green-600' : 'text-red-600'
+                          }`}>
+                            {stat.change}
+                          </div>
+                        </dd>
+                      </dl>
                     </div>
                   </div>
-                ))}
-              </div>
-              <div className="mt-6">
-                <a
-                  href="#"
-                  className="text-blue-600 hover:text-blue-500 text-sm font-medium"
-                >
-                  View all activity →
-                </a>
-              </div>
+                </div>
+              ))}
             </div>
-          </div>
 
-          {/* Quick Actions */}
-          <div className="bg-white rounded-lg shadow-sm border">
-            <div className="px-6 py-4 border-b">
-              <h2 className="text-lg font-semibold text-gray-900">Quick Actions</h2>
-            </div>
-            <div className="p-6">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Quick Actions */}
+            <div className="bg-white rounded-lg shadow-sm border p-6">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 {quickActions.map((action, index) => (
                   <button
                     key={index}
+                    onClick={action.action}
                     className={`${action.bgColor} ${action.hoverColor} p-4 rounded-lg border border-gray-200 text-left transition-colors duration-200`}
                   >
                     <div className="flex items-center space-x-3">
@@ -236,51 +242,18 @@ const Dashboard = ({ user }) => {
               </div>
             </div>
           </div>
-        </div>
+        )}
 
-        {/* Additional sections can be added here */}
-        <div className="mt-8 bg-white rounded-lg shadow-sm border">
-          <div className="px-6 py-4 border-b">
-            <h2 className="text-lg font-semibold text-gray-900">Contract Processing Status</h2>
-          </div>
-          <div className="p-6">
-            <div className="space-y-4">
-              <div className="flex items-center justify-between p-4 bg-blue-50 rounded-lg">
-                <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                    <svg className="w-5 h-5 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M4 4a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2H4zm0 2h12v8H4V6z" clipRule="evenodd" />
-                    </svg>
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-900">Processing Queue</h3>
-                    <p className="text-xs text-gray-500">2 contracts in queue</p>
-                  </div>
-                </div>
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                  Active
-                </span>
-              </div>
-              
-              <div className="flex items-center justify-between p-4 bg-green-50 rounded-lg">
-                <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
-                    <svg className="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                    </svg>
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-900">Completed Today</h3>
-                    <p className="text-xs text-gray-500">7 contracts analyzed</p>
-                  </div>
-                </div>
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                  Completed
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
+        {currentView === 'upload' && (
+          <ContractUpload onUploadSuccess={handleUploadSuccess} />
+        )}
+
+        {currentView === 'list' && (
+          <ContractList 
+            onContractSelect={handleContractSelect}
+            refreshTrigger={refreshTrigger}
+          />
+        )}
       </div>
     </div>
   );
