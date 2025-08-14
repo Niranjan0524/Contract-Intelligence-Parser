@@ -17,7 +17,7 @@ app = FastAPI(title="Contract Intelligence Parser API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=["http://localhost:5173", "http://localhost:5174"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -48,6 +48,20 @@ def upload_contract(background_tasks: BackgroundTasks, file: UploadFile = File(.
     contracts_collection.insert_one(meta)
     background_tasks.add_task(process_contract, contract_id, file_path)
     return {"contract_id": contract_id, "message": "File uploaded and processing started."}
+
+@app.get("/contracts")
+def get_contracts():
+    """Get list of all contracts with metadata."""
+    docs = list(contracts_collection.find({}, {"_id": 0}))
+    return {"contracts": docs}
+
+@app.get("/contracts/{contract_id}")
+def get_contract_details(contract_id: str):
+    """Get detailed contract information including extracted data."""
+    doc = contracts_collection.find_one({"contract_id": contract_id}, {"_id": 0})
+    if not doc:
+        raise HTTPException(status_code=404, detail="contract_id not found.")
+    return doc
 
 @app.get("/contracts/{contract_id}/status")
 def get_contract_status(contract_id: str):
