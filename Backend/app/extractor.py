@@ -57,51 +57,177 @@ def extract_fields(text):
         "revenue_classification": {},
         "service_level_agreements": {},
     }
-    # Party Identification
-    parties = re.findall(r"between\s+(.*?)\s+and\s+(.*?)\b", text, re.IGNORECASE)
-    if parties:
-        fields["party_identification"]["parties"] = parties[0]
-    reg_details = re.findall(r"Registration\s*No\.?[:\s]*([\w-]+)", text, re.IGNORECASE)
+    
+    # Party Identification - Enhanced
+    parties_patterns = [
+        r"between\s+(.*?)\s+and\s+(.*?)(?:\s|,)",
+        r"Party\s*[1A]:\s*(.*?)(?:\n|Party)",
+        r"Customer:\s*(.*?)(?:\n|Vendor)",
+        r"Client:\s*(.*?)(?:\n|Provider)"
+    ]
+    for pattern in parties_patterns:
+        matches = re.findall(pattern, text, re.IGNORECASE | re.DOTALL)
+        if matches:
+            if isinstance(matches[0], tuple):
+                fields["party_identification"]["parties"] = list(matches[0])
+            else:
+                fields["party_identification"]["parties"] = matches
+            break
+    
+    # Legal entity registration details
+    reg_patterns = [
+        r"Registration\s*(?:No\.?|Number)[:\s]*([\w-]+)",
+        r"Incorporation\s*(?:No\.?|Number)[:\s]*([\w-]+)",
+        r"Company\s*(?:No\.?|Number)[:\s]*([\w-]+)"
+    ]
+    reg_details = []
+    for pattern in reg_patterns:
+        reg_details.extend(re.findall(pattern, text, re.IGNORECASE))
     if reg_details:
         fields["party_identification"]["registration_details"] = reg_details
-    signatories = re.findall(r"Signed\s+by\s+(.*?)\s+as", text, re.IGNORECASE)
+    
+    # Authorized signatories
+    sig_patterns = [
+        r"Signed\s+by[:\s]+(.*?)(?:\n|as|on)",
+        r"Authorized\s+(?:by|signatory)[:\s]+(.*?)(?:\n|,)",
+        r"(?:CEO|President|Director|Manager)[:\s]+(.*?)(?:\n|,)"
+    ]
+    signatories = []
+    for pattern in sig_patterns:
+        signatories.extend(re.findall(pattern, text, re.IGNORECASE))
     if signatories:
-        fields["party_identification"]["signatories"] = signatories
-    # Account Information
+        fields["party_identification"]["signatories"] = signatories[:5]  # Limit to 5
+    
+    # Account Information - Enhanced
     emails = re.findall(EMAIL_REGEX, text)
     if emails:
-        fields["account_information"]["emails"] = emails
-    accounts = re.findall(ACCOUNT_REGEX, text)
+        fields["account_information"]["emails"] = list(set(emails))[:10]  # Unique emails, max 10
+    
+    # Account numbers - multiple patterns
+    account_patterns = [
+        r"Account\s*(?:No\.?|Number)[:\s]*([\w-]+)",
+        r"Customer\s*(?:ID|Number)[:\s]*([\w-]+)",
+        r"Reference\s*(?:No\.?|Number)[:\s]*([\w-]+)"
+    ]
+    accounts = []
+    for pattern in account_patterns:
+        accounts.extend(re.findall(pattern, text, re.IGNORECASE))
     if accounts:
-        fields["account_information"]["account_numbers"] = accounts
-    # Financial Details
-    money = re.findall(MONEY_REGEX, text)
-    if money:
-        fields["financial_details"]["amounts"] = money
-    # Payment Structure
-    payment_terms = re.findall(r"Net\s*\d+", text)
+        fields["account_information"]["account_numbers"] = list(set(accounts))
+    
+    # Financial Details - Enhanced
+    money_patterns = [
+        r"\$\s?\d+[\d,]*(?:\.\d{2})?",
+        r"USD\s?\d+[\d,]*(?:\.\d{2})?",
+        r"\d+[\d,]*(?:\.\d{2})?\s?(?:dollars?|USD|\$)",
+    ]
+    amounts = []
+    for pattern in money_patterns:
+        amounts.extend(re.findall(pattern, text, re.IGNORECASE))
+    if amounts:
+        fields["financial_details"]["amounts"] = list(set(amounts))[:20]  # Max 20 amounts
+    
+    # Line items and descriptions
+    line_item_patterns = [
+        r"(?:Item|Service|Product)[:\s]+(.*?)(?:\n|Price|Cost)",
+        r"Description[:\s]+(.*?)(?:\n|Quantity|Price)"
+    ]
+    line_items = []
+    for pattern in line_item_patterns:
+        line_items.extend(re.findall(pattern, text, re.IGNORECASE | re.DOTALL))
+    if line_items:
+        fields["financial_details"]["line_items"] = [item.strip()[:100] for item in line_items[:10]]
+    
+    # Payment Structure - Enhanced
+    payment_terms = re.findall(r"Net\s*\d+", text, re.IGNORECASE)
     if payment_terms:
-        fields["payment_structure"]["terms"] = payment_terms
-    # Revenue Classification
-    recurring = re.findall(r"recurring|subscription", text, re.IGNORECASE)
-    if recurring:
+        fields["payment_structure"]["terms"] = list(set(payment_terms))
+    
+    # Payment schedules
+    schedule_patterns = [
+        r"(?:due|payable)\s+(?:on|within)\s+(.*?)(?:\n|,|\.|;)",
+        r"payment\s+schedule[:\s]+(.*?)(?:\n|\.)",
+        r"(?:monthly|quarterly|annually|yearly)",
+    ]
+    schedules = []
+    for pattern in schedule_patterns:
+        schedules.extend(re.findall(pattern, text, re.IGNORECASE))
+    if schedules:
+        fields["payment_structure"]["schedules"] = [s.strip() for s in schedules[:5]]
+    
+    # Revenue Classification - Enhanced
+    recurring_indicators = re.findall(
+        r"recurring|subscription|monthly|quarterly|annual|yearly|renewal|auto-renew", 
+        text, re.IGNORECASE
+    )
+    if recurring_indicators:
         fields["revenue_classification"]["recurring"] = True
-    # SLA
-    sla = re.findall(r"service level agreement|SLA|uptime|penalty", text, re.IGNORECASE)
-    if sla:
-        fields["service_level_agreements"]["sla_terms"] = sla
+        fields["revenue_classification"]["indicators"] = list(set(recurring_indicators))
+    else:
+        fields["revenue_classification"]["recurring"] = False
+    
+    # Billing cycles
+    cycle_patterns = [
+        r"(?:billed|billing)\s+(?:monthly|quarterly|annually|yearly)",
+        r"(?:every|each)\s+(?:month|quarter|year)",
+    ]
+    cycles = []
+    for pattern in cycle_patterns:
+        cycles.extend(re.findall(pattern, text, re.IGNORECASE))
+    if cycles:
+        fields["revenue_classification"]["billing_cycles"] = list(set(cycles))
+    
+    # Service Level Agreements - Enhanced
+    sla_patterns = [
+        r"service level agreement|SLA",
+        r"uptime[:\s]+(\d+(?:\.\d+)?%?)",
+        r"availability[:\s]+(\d+(?:\.\d+)?%?)",
+        r"penalty|liquidated damages",
+        r"performance metrics?",
+        r"support.*(?:24/7|business hours)",
+        r"response time[:\s]+(.*?)(?:\n|\.)"
+    ]
+    sla_terms = []
+    for pattern in sla_patterns:
+        sla_terms.extend(re.findall(pattern, text, re.IGNORECASE))
+    if sla_terms:
+        fields["service_level_agreements"]["sla_terms"] = list(set(sla_terms))[:10]
+    
     return fields
 
-# Helper: scoring
+# Helper: scoring - Enhanced
 def score_fields(fields):
-    """Weighted scoring based on completeness."""
+    """Weighted scoring based on completeness (0-100 points)."""
     score = 0
-    if fields["financial_details"]: score += 30
-    if fields["party_identification"]: score += 25
-    if fields["payment_structure"]: score += 20
-    if fields["service_level_agreements"]: score += 15
-    if fields["account_information"]: score += 10
-    return score
+    
+    # Financial completeness: 30 points
+    financial = fields.get("financial_details", {})
+    if financial.get("amounts"): score += 15
+    if financial.get("line_items"): score += 10
+    if financial.get("money_entities"): score += 5
+    
+    # Party identification: 25 points
+    parties = fields.get("party_identification", {})
+    if parties.get("persons"): score += 10
+    if parties.get("parties"): score += 8
+    if parties.get("registration_details"): score += 4
+    if parties.get("signatories"): score += 3
+    
+    # Payment terms clarity: 20 points
+    payment = fields.get("payment_structure", {})
+    if payment.get("terms"): score += 12
+    if payment.get("schedules"): score += 8
+    
+    # SLA definition: 15 points
+    sla = fields.get("service_level_agreements", {})
+    if sla.get("sla_terms"): score += 15
+    
+    # Contact information: 10 points
+    contact = fields.get("account_information", {})
+    if contact.get("emails"): score += 6
+    if contact.get("account_numbers"): score += 4
+    
+    return min(score, 100)  # Cap at 100
 
 # Main processing function
 def process_contract(pdf_path):
@@ -115,29 +241,60 @@ def process_contract(pdf_path):
         "service_level_agreements": {},
         "score": 0,
         "created_at": datetime.now(timezone.utc),
-        "file_path": pdf_path
+        "file_path": pdf_path,
+        "processing_status": "processing"
     }
+    
     try:
+        print(f"[INFO] Starting contract extraction for: {pdf_path}")
+        
+        # Extract text from PDF
         text = extract_text(pdf_path)
-        if not text:
-            raise Exception("No text extracted from PDF.")
+        if not text or len(text.strip()) < 50:
+            raise Exception("Insufficient text extracted from PDF.")
+        
+        print(f"[INFO] Extracted {len(text)} characters of text")
+        
+        # Extract entities using spaCy NER
         entities = extract_entities(text)
+        print(f"[INFO] Found {len(entities['persons'])} persons, {len(entities['money'])} money entities")
+        
+        # Extract structured fields
         fields = extract_fields(text)
-        # Merge NER into fields
-        fields["party_identification"]["persons"] = entities["persons"]
-        fields["financial_details"]["money_entities"] = entities["money"]
-        fields["financial_details"]["dates"] = entities["dates"]
+        
+        # Merge NER results into structured fields
+        if entities["persons"]:
+            fields["party_identification"]["persons"] = entities["persons"]
+        if entities["money"]:
+            fields["financial_details"]["money_entities"] = entities["money"]
+        if entities["dates"]:
+            fields["financial_details"]["dates"] = entities["dates"]
+        
+        # Update result with extracted data
         result.update(fields)
+        
+        # Calculate weighted score
         result["score"] = score_fields(fields)
-        # Save to MongoDB
-        client = MongoClient(MONGO_URI)
-        db = client[DB_NAME]
-        collection = db[COLLECTION_NAME]
-        collection.insert_one(result)
-        client.close()
-        print(f"[INFO] Contract processed and saved. Score: {result['score']}")
+        result["processing_status"] = "completed"
+        
+        print(f"[INFO] Contract processed successfully. Score: {result['score']}/100")
+        
+        # Log extracted data summary
+        summary = {
+            "persons": len(entities["persons"]),
+            "emails": len(fields.get("account_information", {}).get("emails", [])),
+            "amounts": len(fields.get("financial_details", {}).get("amounts", [])),
+            "payment_terms": len(fields.get("payment_structure", {}).get("terms", [])),
+            "sla_terms": len(fields.get("service_level_agreements", {}).get("sla_terms", [])),
+        }
+        print(f"[INFO] Extraction summary: {summary}")
+        
     except Exception as e:
         print(f"[ERROR] Contract processing failed: {e}")
+        result["processing_status"] = "failed"
+        result["error"] = str(e)
+        result["score"] = 0
+    
     return result
 
 if __name__ == "__main__":

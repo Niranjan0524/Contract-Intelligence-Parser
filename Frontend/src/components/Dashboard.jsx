@@ -16,8 +16,10 @@ const Dashboard = ({ user }) => {
   };
 
   const handleContractSelect = (contract) => {
+    console.log('handleContractSelect called with:', contract);
     setSelectedContract(contract);
     setCurrentView('detail');
+    console.log('Set currentView to detail, selectedContract:', contract);
   };
 
   const handleBackToList = () => {
@@ -250,7 +252,7 @@ const Dashboard = ({ user }) => {
 
         {currentView === 'list' && (
           <ContractList 
-            onContractSelect={handleContractSelect}
+            onSelectContract={handleContractSelect}
             refreshTrigger={refreshTrigger}
           />
         )}

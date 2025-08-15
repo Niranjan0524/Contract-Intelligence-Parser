@@ -16,7 +16,9 @@ const handleResponse = async (response) => {
       response.status
     );
   }
-  return response.json();
+  const responseData = await response.json();
+  console.log('API Response:', responseData);
+  return responseData;
 };
 
 const api = {
@@ -36,6 +38,7 @@ const api = {
   // Get all contracts
   getContracts: async () => {
     const response = await fetch(`${API_BASE_URL}/contracts`);
+
     return handleResponse(response);
   },
 

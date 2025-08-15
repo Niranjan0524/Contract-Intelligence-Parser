@@ -164,9 +164,15 @@ const ContractList = ({ onSelectContract, refreshTrigger }) => {
         ) : (
           sortedContracts.map((contract) => (
             <div
-              key={contract.contract_id}
+              key={contract._id}
               className="px-6 py-4 hover:bg-gray-50 cursor-pointer transition-colors duration-150"
-              onClick={() => onContractSelect && onContractSelect(contract)}
+              onClick={() => {
+                console.log('Contract clicked:', contract);
+                console.log('onSelectContract function:', onSelectContract);
+                if (onSelectContract) {
+                  onSelectContract(contract);
+                }
+              }}
             >
               <div className="flex items-center justify-between">
                 <div className="flex-1 min-w-0">
