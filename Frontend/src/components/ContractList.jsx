@@ -79,10 +79,14 @@ const ContractList = ({ onSelectContract, refreshTrigger }) => {
     });
   };
 
-  const filteredContracts = contracts.filter(contract =>
-    contract.contract_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (contract.filename && contract.filename.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  const filteredContracts = contracts.filter(contract =>{
+    if (!contract || !contract.contract_id) return false;
+    const contractId = contract.contract_id.toLowerCase();
+    const filename = contract.filename ? contract.filename.toLowerCase() : "";
+    const searchLower = searchTerm.toLowerCase();
+
+    return contractId.includes(searchLower) || filename.includes(searchLower);
+  });
 
   const sortedContracts = [...filteredContracts].sort((a, b) => {
     const aValue = a[sortBy];
