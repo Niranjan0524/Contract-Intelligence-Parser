@@ -3,11 +3,12 @@
 FastAPI entry point for Contract Intelligence Parser backend.
 """
 import os
-from fastapi import FastAPI, UploadFile, File, HTTPException, BackgroundTasks
+from fastapi import FastAPI, UploadFile, File, HTTPException, BackgroundTasks, Query
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from uuid import uuid4
 from datetime import datetime
+from typing import Optional
 from app.config import UPLOAD_DIR, MAX_FILE_SIZE_MB, ALLOWED_EXTENSIONS
 from app.db import contracts_collection
 from app.models import contract_metadata_dict
@@ -32,29 +33,133 @@ def homePage():
 
 @app.post("/contracts/upload")
 def upload_contract(background_tasks: BackgroundTasks, file: UploadFile = File(...)):
+    """Upload a PDF contract file for processing."""
+    
+    # Validate file extension
     ext = os.path.splitext(file.filename)[1].lower()
     if ext not in ALLOWED_EXTENSIONS:
-        raise HTTPException(status_code=400, detail="Invalid file type. Only PDF allowed.")
+        raise HTTPException(status_code=400, detail="Invalid file type. Only PDF files are allowed.")
+    
+    # Read and validate file size
     contents = file.file.read()
     if len(contents) > MAX_FILE_SIZE_MB * 1024 * 1024:
-        raise HTTPException(status_code=400, detail="File too large. Max 50MB allowed.")
+        raise HTTPException(status_code=400, detail=f"File too large. Maximum {MAX_FILE_SIZE_MB}MB allowed.")
+    
+    # Generate unique contract ID and filename
     contract_id = str(uuid4())
     filename = f"{contract_id}{ext}"
     file_path = os.path.join(UPLOAD_DIR, filename)
-    with open(file_path, "wb") as f:
-        f.write(contents)
-    meta = contract_metadata_dict(file_path)
+    
+    # Save file to disk
+    try:
+        with open(file_path, "wb") as f:
+            f.write(contents)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to save file: {str(e)}")
+    
+    # Create metadata and insert into database
+    meta = contract_metadata_dict(file_path, file.filename)
     meta["contract_id"] = contract_id
-    contracts_collection.insert_one(meta)
+    
+    try:
+        contracts_collection.insert_one(meta)
+    except Exception as e:
+        # Clean up file if database insert fails
+        if os.path.exists(file_path):
+            os.remove(file_path)
+        raise HTTPException(status_code=500, detail=f"Failed to save metadata: {str(e)}")
+    
+    # Start background processing
     background_tasks.add_task(process_contract, contract_id, file_path)
-    return {"contract_id": contract_id, "message": "File uploaded and processing started."}
+    
+    print(f"[INFO] Contract {contract_id} uploaded successfully: {file.filename}")
+    
+    return {
+        "contract_id": contract_id,
+        "original_filename": file.filename,
+        "message": "File uploaded successfully and processing started.",
+        "status": "pending"
+    }
 
 @app.get("/contracts")
-def get_contracts():
-    """Get list of all contracts with metadata."""
-    docs = list(contracts_collection.find({},{"_id": 0}))
-    print("Retrieved contracts in backend:", docs)
-    return {"contracts": docs}
+def get_contracts(
+    page: int = Query(1, ge=1, description="Page number (1-based)"),
+    limit: int = Query(10, ge=1, le=100, description="Number of contracts per page"),
+    status: Optional[str] = Query(None, description="Filter by status: pending, processing, completed, failed"),
+    min_score: Optional[int] = Query(None, ge=0, le=100, description="Minimum confidence score"),
+    max_score: Optional[int] = Query(None, ge=0, le=100, description="Maximum confidence score"),
+    sort_by: str = Query("created_at", description="Sort field: created_at, updated_at, score, original_filename"),
+    sort_order: str = Query("desc", description="Sort order: asc or desc"),
+    search: Optional[str] = Query(None, description="Search in filename")
+):
+    """Get paginated list of contracts with filtering and sorting capabilities."""
+    
+    # Build MongoDB filter query
+    filter_query = {}
+    
+    if status:
+        filter_query["status"] = status
+    
+    if min_score is not None or max_score is not None:
+        score_filter = {}
+        if min_score is not None:
+            score_filter["$gte"] = min_score
+        if max_score is not None:
+            score_filter["$lte"] = max_score
+        filter_query["score"] = score_filter
+    
+    if search:
+        filter_query["original_filename"] = {"$regex": search, "$options": "i"}
+    
+    # Calculate pagination
+    skip = (page - 1) * limit
+    
+    # Build sort query
+    sort_direction = 1 if sort_order == "asc" else -1
+    sort_query = [(sort_by, sort_direction)]
+    
+    try:
+        # Get total count for pagination
+        total_count = contracts_collection.count_documents(filter_query)
+        
+        # Get paginated results
+        docs = list(
+            contracts_collection.find(filter_query, {"_id": 0})
+            .sort(sort_query)
+            .skip(skip)
+            .limit(limit)
+        )
+        
+        # Calculate pagination metadata
+        total_pages = (total_count + limit - 1) // limit
+        has_next = page < total_pages
+        has_prev = page > 1
+        
+        print(f"[DEBUG] Retrieved {len(docs)} contracts (page {page}/{total_pages})")
+        
+        return {
+            "contracts": docs,
+            "pagination": {
+                "current_page": page,
+                "total_pages": total_pages,
+                "total_count": total_count,
+                "limit": limit,
+                "has_next": has_next,
+                "has_prev": has_prev
+            },
+            "filters": {
+                "status": status,
+                "min_score": min_score,
+                "max_score": max_score,
+                "search": search,
+                "sort_by": sort_by,
+                "sort_order": sort_order
+            }
+        }
+        
+    except Exception as e:
+        print(f"[ERROR] Failed to retrieve contracts: {e}")
+        raise HTTPException(status_code=500, detail="Failed to retrieve contracts")
 
 @app.get("/contracts/{contract_id}")
 def get_contract_details(contract_id: str):
@@ -120,23 +225,64 @@ def get_contract_details(contract_id: str):
 
 @app.get("/contracts/{contract_id}/status")
 def get_contract_status(contract_id: str):
+    """Get contract processing status with progress information."""
     doc = contracts_collection.find_one({"contract_id": contract_id})
     if not doc:
-        raise HTTPException(status_code=404, detail="contract_id not found.")
-    return {
-        "contract_id": contract_id,
-        "status": doc["status"],
-        "created_at": doc["created_at"],
-        "updated_at": doc["updated_at"],
-        "error": doc.get("error")
+        raise HTTPException(status_code=404, detail="Contract not found.")
+    
+    status = doc["status"]
+    
+    # Calculate progress percentage based on status
+    progress_map = {
+        "pending": 0,
+        "processing": 50,
+        "completed": 100,
+        "failed": 0
     }
+    
+    progress_percentage = progress_map.get(status, 0)
+    
+    result = {
+        "contract_id": contract_id,
+        "status": status,
+        "progress_percentage": progress_percentage,
+        "created_at": doc["created_at"],
+        "updated_at": doc["updated_at"]
+    }
+    
+    # Add error details if failed
+    if status == "failed" and doc.get("error"):
+        result["error_details"] = doc["error"]
+    
+    # Add score if completed
+    if status == "completed" and doc.get("score") is not None:
+        result["confidence_score"] = doc["score"]
+    
+    print(f"[DEBUG] Status check for contract {contract_id}: {status} ({progress_percentage}%)")
+    return result
 
 @app.get("/contracts/{contract_id}/download")
 def download_contract(contract_id: str):
+    """Download the original contract file."""
     doc = contracts_collection.find_one({"contract_id": contract_id})
     if not doc:
-        raise HTTPException(status_code=404, detail="contract_id not found.")
+        raise HTTPException(status_code=404, detail="Contract not found.")
+    
     file_path = doc["file_path"]
     if not os.path.exists(file_path):
-        raise HTTPException(status_code=404, detail="File not found on server.")
-    return FileResponse(file_path, media_type="application/pdf", filename=os.path.basename(file_path))
+        raise HTTPException(status_code=404, detail="Contract file not found on server.")
+    
+    # Get original filename, fallback to generated filename
+    original_filename = doc.get("original_filename", f"{contract_id}.pdf")
+    
+    print(f"[INFO] Downloading contract {contract_id}: {original_filename}")
+    
+    return FileResponse(
+        file_path,
+        media_type="application/pdf",
+        filename=original_filename,
+        headers={
+            "Content-Disposition": f'attachment; filename="{original_filename}"',
+            "Cache-Control": "no-cache"
+        }
+    )

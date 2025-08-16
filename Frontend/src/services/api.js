@@ -35,10 +35,32 @@ const api = {
     return handleResponse(response);
   },
 
-  // Get all contracts
-  getContracts: async () => {
-    const response = await fetch(`${API_BASE_URL}/contracts`);
+  // Get all contracts with pagination and filtering
+  getContracts: async (options = {}) => {
+    const {
+      page = 1,
+      limit = 10,
+      status,
+      minScore,
+      maxScore,
+      sortBy = 'created_at',
+      sortOrder = 'desc',
+      search
+    } = options;
 
+    const params = new URLSearchParams({
+      page: page.toString(),
+      limit: limit.toString(),
+      sort_by: sortBy,
+      sort_order: sortOrder
+    });
+
+    if (status) params.append('status', status);
+    if (minScore !== undefined) params.append('min_score', minScore.toString());
+    if (maxScore !== undefined) params.append('max_score', maxScore.toString());
+    if (search) params.append('search', search);
+
+    const response = await fetch(`${API_BASE_URL}/contracts?${params.toString()}`);
     return handleResponse(response);
   },
 
