@@ -1,9 +1,9 @@
 FROM python:3.10-slim
 WORKDIR /app
-COPY Backend/requirements.txt ./
+COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 RUN python -m spacy download en_core_web_sm
-COPY Backend/ ./
+COPY . .
 RUN mkdir -p uploads
-EXPOSE $PORT
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "$PORT"]
+EXPOSE 8000
+CMD ["python", "start.py"]
