@@ -286,3 +286,7 @@ def download_contract(contract_id: str):
             "Cache-Control": "no-cache"
         }
     )
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)
