@@ -14,7 +14,7 @@ Contract Intelligence Parser is a full-stack application that revolutionizes con
 - 🎨 **Modern UI**: React 19 with Tailwind CSS v4
 - 🔄 **REST API**: FastAPI with comprehensive endpoints
 - 📱 **Responsive Design**: Works seamlessly across all devices
-- 🔐 **Production Ready**: Deployed on Railway with MongoDB Atlas
+
 
 ---
 
