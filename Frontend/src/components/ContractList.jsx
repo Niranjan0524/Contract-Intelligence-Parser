@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import api, { ApiError } from '../services/api';
+import { FaDownload } from "react-icons/fa6";
 
 const ContractList = ({ onSelectContract, refreshTrigger }) => {
   const [contracts, setContracts] = useState([]);
@@ -11,6 +12,22 @@ const ContractList = ({ onSelectContract, refreshTrigger }) => {
   useEffect(() => {
     fetchContracts();
   }, [refreshTrigger]);
+
+  const handleDownloadContract = async (event, contract) => {
+    event.stopPropagation();
+    try {
+      const response = await api.downloadContract(contract.contract_id);
+      const url = window.URL.createObjectURL(response);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = contract.filename || 'contract.pdf';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    } catch (error) {
+      console.error('Failed to download contract:', error);
+    }
+  };
 
   const fetchContracts = async () => {
     try {
@@ -115,7 +132,7 @@ const ContractList = ({ onSelectContract, refreshTrigger }) => {
       <div className="px-6 py-4 border-b border-gray-200">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0">
           <h2 className="text-lg font-semibold text-gray-900">Contract List</h2>
-          
+
           <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3">
             {/* Search */}
             <div className="relative">
@@ -127,8 +144,18 @@ const ContractList = ({ onSelectContract, refreshTrigger }) => {
                 className="w-full sm:w-64 pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
               />
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                <svg
+                  className="h-5 w-5 text-gray-400"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                  />
                 </svg>
               </div>
             </div>
@@ -137,7 +164,7 @@ const ContractList = ({ onSelectContract, refreshTrigger }) => {
             <select
               value={`${sortBy}-${sortOrder}`}
               onChange={(e) => {
-                const [field, order] = e.target.value.split('-');
+                const [field, order] = e.target.value.split("-");
                 setSortBy(field);
                 setSortOrder(order);
               }}
@@ -155,11 +182,25 @@ const ContractList = ({ onSelectContract, refreshTrigger }) => {
       <div className="divide-y divide-gray-200">
         {sortedContracts.length === 0 ? (
           <div className="px-6 py-12 text-center">
-            <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            <svg
+              className="mx-auto h-12 w-12 text-gray-400"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+              />
             </svg>
-            <h3 className="mt-2 text-sm font-medium text-gray-900">No contracts found</h3>
-            <p className="mt-1 text-sm text-gray-500">Get started by uploading your first contract.</p>
+            <h3 className="mt-2 text-sm font-medium text-gray-900">
+              No contracts found
+            </h3>
+            <p className="mt-1 text-sm text-gray-500">
+              Get started by uploading your first contract.
+            </p>
           </div>
         ) : (
           sortedContracts.map((contract) => (
@@ -167,8 +208,8 @@ const ContractList = ({ onSelectContract, refreshTrigger }) => {
               key={contract._id}
               className="px-6 py-4 hover:bg-gray-50 cursor-pointer transition-colors duration-150"
               onClick={() => {
-                console.log('Contract clicked:', contract);
-                console.log('onSelectContract function:', onSelectContract);
+                console.log("Contract clicked:", contract);
+                console.log("onSelectContract function:", onSelectContract);
                 if (onSelectContract) {
                   onSelectContract(contract);
                 }
@@ -178,8 +219,16 @@ const ContractList = ({ onSelectContract, refreshTrigger }) => {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center space-x-3">
                     <div className="flex-shrink-0">
-                      <svg className="h-8 w-8 text-red-600" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clipRule="evenodd" />
+                      <svg
+                        className="h-8 w-8 text-red-600"
+                        fill="currentColor"
+                        viewBox="0 0 20 20"
+                      >
+                        <path
+                          fillRule="evenodd"
+                          d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z"
+                          clipRule="evenodd"
+                        />
                       </svg>
                     </div>
                     <div className="flex-1 min-w-0">
@@ -192,15 +241,32 @@ const ContractList = ({ onSelectContract, refreshTrigger }) => {
                     </div>
                   </div>
                 </div>
-                
+
                 <div className="flex items-center space-x-4">
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(contract.status)}`}>
-                    <span className="mr-1.5">{getStatusIcon(contract.status)}</span>
-                    {contract.status.charAt(0).toUpperCase() + contract.status.slice(1)}
+                  <span
+                    className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(
+                      contract.status
+                    )}`}
+                  >
+                    <span className="mr-1.5">
+                      {getStatusIcon(contract.status)}
+                    </span>
+                    {contract.status.charAt(0).toUpperCase() +
+                      contract.status.slice(1)}
                   </span>
-                  
-                  <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  <FaDownload onClick={() => handleDownloadContract(event, contract)}/>
+                  <svg
+                    className="h-5 w-5 text-gray-400"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 5l7 7-7 7"
+                    />
                   </svg>
                 </div>
               </div>

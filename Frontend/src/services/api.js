@@ -79,6 +79,7 @@ const api = {
   // Download contract file
   downloadContract: async (contractId) => {
     const response = await fetch(`${API_BASE_URL}/contracts/${contractId}/download`);
+    
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       throw new ApiError(
