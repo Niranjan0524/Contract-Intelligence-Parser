@@ -87,21 +87,20 @@ Get a comprehensive view of the Contract Intelligence Parser interface and funct
   <img src="./pics/5.png" alt="Analytics Dashboard" width="900">
 </div>
 
-*Advanced analytics and reporting dashboard with performance metrics*
 
-### **⚙️ Configuration & Settings**
 <div align="center">
   <img src="./pics/6.png" alt="Configuration Interface" width="900">
 </div>
 
-*System configuration and settings management interface*
 
-### **🚀 Processing Status & Workflow**
+
 <div align="center">
   <img src="./pics/7.png" alt="Processing Workflow" width="900">
 </div>
 
-*Real-time processing status and workflow management system*
+
+*Advanced analytics and reporting dashboard with performance metrics*
+
 
 ---
 
