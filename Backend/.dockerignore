@@ -31,11 +31,15 @@ docker-compose.yml
 *.md
 README.md
 
-# Environment files (we'll provide externally)
+# Environment files
 .env
+.env.*
 
 # Logs
 *.log
 
 # Test files
 test_*.py
+
+# Uploads (will be created at runtime)
+uploads/
