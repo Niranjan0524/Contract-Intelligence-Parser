@@ -1,6 +1,5 @@
 # 🔍 Contract Intelligence Parser
 
-
 > **Advanced AI-powered contract analysis system that extracts, analyzes, and structures critical contract information with precision and intelligence.**
 
 ## 🎯 **Project Overview**
@@ -46,6 +45,63 @@ graph TB
 - **Custom Regex Patterns** - Structured data extraction
 - **Weighted Scoring Algorithm** - Confidence assessment
 - **Multi-pattern Matching** - Comprehensive field detection
+
+---
+
+---
+
+## 📸 **Application Screenshots**
+
+Get a comprehensive view of the Contract Intelligence Parser interface and functionality through these detailed screenshots:
+
+### **🏠 Main Dashboard**
+<div align="center">
+  <img src="./pics/1.png" alt="Main Dashboard Overview" width="900">
+</div>
+
+*Complete dashboard interface showing contract overview, statistics, and navigation menu*
+
+### **📤 Contract Upload Interface**
+<div align="center">
+  <img src="./pics/2.png" alt="Contract Upload Interface" width="900">
+</div>
+
+*Drag-and-drop upload interface with file validation and progress indicators*
+
+### **📋 Contract List Management**
+<div align="center">
+  <img src="./pics/3.png" alt="Contract List View" width="900">
+</div>
+
+*Comprehensive contract list with filtering, search, and sorting capabilities*
+
+### **🔍 Contract Analysis Results**
+<div align="center">
+  <img src="./pics/4.png" alt="Contract Analysis Results" width="900">
+</div>
+
+*Detailed contract analysis results showing extracted data and confidence scores*
+
+### **📊 Analytics Dashboard**
+<div align="center">
+  <img src="./pics/5.png" alt="Analytics Dashboard" width="900">
+</div>
+
+*Advanced analytics and reporting dashboard with performance metrics*
+
+### **⚙️ Configuration & Settings**
+<div align="center">
+  <img src="./pics/6.png" alt="Configuration Interface" width="900">
+</div>
+
+*System configuration and settings management interface*
+
+### **🚀 Processing Status & Workflow**
+<div align="center">
+  <img src="./pics/7.png" alt="Processing Workflow" width="900">
+</div>
+
+*Real-time processing status and workflow management system*
 
 ---
 
