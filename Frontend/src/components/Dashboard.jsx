@@ -2,15 +2,22 @@ import { useState } from 'react';
 import ContractUpload from './ContractUpload';
 import ContractList from './ContractList';
 import ContractDetail from './ContractDetail';
+import StatIcon from './StatIcon';
+import useContractStats from '../hooks/useContractStats';
 
 const Dashboard = ({ user }) => {
   const [currentView, setCurrentView] = useState('overview'); // 'overview', 'upload', 'list', 'detail'
   const [selectedContract, setSelectedContract] = useState(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
+  // Use the custom hook for dynamic statistics
+  const { stats, loading: statsLoading, error: statsError, refetch: refetchStats } = useContractStats(refreshTrigger);
+
   const handleUploadSuccess = (result) => {
     console.log('Upload successful:', result);
     setRefreshTrigger(prev => prev + 1);
+    // Refetch stats to update dashboard
+    refetchStats();
     // Show success message or redirect to list view
     setCurrentView('list');
   };
@@ -26,54 +33,6 @@ const Dashboard = ({ user }) => {
     setCurrentView('list');
     setSelectedContract(null);
   };
-
-  // Sample data for overview stats
-  const stats = [
-    {
-      label: 'Total Contracts',
-      value: '48',
-      change: '+12%',
-      changeType: 'positive',
-      icon: (
-        <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-        </svg>
-      ),
-    },
-    {
-      label: 'Processed Today',
-      value: '7',
-      change: '+3',
-      changeType: 'positive',
-      icon: (
-        <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-        </svg>
-      ),
-    },
-    {
-      label: 'High Risk Items',
-      value: '3',
-      change: '-2',
-      changeType: 'negative',
-      icon: (
-        <svg className="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 19c-.77.833.192 2.5 1.732 2.5z" />
-        </svg>
-      ),
-    },
-    {
-      label: 'Accuracy Rate',
-      value: '94%',
-      change: '+2%',
-      changeType: 'positive',
-      icon: (
-        <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-      ),
-    },
-  ];
 
   const quickActions = [
     {
@@ -186,39 +145,110 @@ const Dashboard = ({ user }) => {
       <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
         {currentView === 'overview' && (
           <div className="space-y-6">
+            {/* Header with Refresh Button */}
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">Dashboard Overview</h1>
+                <p className="text-gray-600 mt-1">Real-time contract processing statistics and insights</p>
+              </div>
+              <button
+                onClick={refetchStats}
+                disabled={statsLoading}
+                className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+              >
+                <svg 
+                  className={`w-4 h-4 mr-2 ${statsLoading ? 'animate-spin' : ''}`} 
+                  fill="none" 
+                  stroke="currentColor" 
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                {statsLoading ? 'Refreshing...' : 'Refresh'}
+              </button>
+            </div>
+
             {/* Stats Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {stats.map((stat, index) => (
-                <div key={index} className="bg-white rounded-lg shadow-sm border p-6">
-                  <div className="flex items-center">
-                    <div className="flex-shrink-0">
-                      {stat.icon}
-                    </div>
-                    <div className="ml-5 w-0 flex-1">
-                      <dl>
-                        <dt className="text-sm font-medium text-gray-500 truncate">
-                          {stat.label}
-                        </dt>
-                        <dd className="flex items-baseline">
-                          <div className="text-2xl font-semibold text-gray-900">
-                            {stat.value}
-                          </div>
-                          <div className={`ml-2 flex items-baseline text-sm font-semibold ${
-                            stat.changeType === 'positive' ? 'text-green-600' : 'text-red-600'
-                          }`}>
-                            {stat.change}
-                          </div>
-                        </dd>
-                      </dl>
+              {statsLoading ? (
+                // Loading skeleton for stats
+                Array.from({ length: 4 }).map((_, index) => (
+                  <div key={index} className="bg-white rounded-lg shadow-sm border p-6 animate-pulse">
+                    <div className="flex items-center">
+                      <div className="flex-shrink-0">
+                        <div className="w-6 h-6 bg-gray-300 rounded"></div>
+                      </div>
+                      <div className="ml-5 w-0 flex-1">
+                        <div className="h-4 bg-gray-300 rounded w-3/4 mb-2"></div>
+                        <div className="h-8 bg-gray-300 rounded w-1/2"></div>
+                      </div>
                     </div>
                   </div>
+                ))
+              ) : statsError ? (
+                // Error state
+                <div className="col-span-full bg-red-50 border border-red-200 rounded-lg p-6">
+                  <div className="flex items-center">
+                    <svg className="w-5 h-5 text-red-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span className="text-red-800 font-medium">Failed to load statistics</span>
+                  </div>
+                  <p className="text-red-600 text-sm mt-1">{statsError}</p>
+                  <button 
+                    onClick={refetchStats}
+                    className="mt-3 px-4 py-2 bg-red-100 text-red-800 rounded-md text-sm font-medium hover:bg-red-200 transition-colors"
+                  >
+                    Retry
+                  </button>
                 </div>
-              ))}
+              ) : (
+                // Actual stats
+                stats.map((stat, index) => (
+                  <div key={index} className="bg-white rounded-lg shadow-sm border p-6 hover:shadow-md transition-shadow duration-200">
+                    <div className="flex items-center">
+                      <div className="flex-shrink-0">
+                        <StatIcon type={stat.iconType} />
+                      </div>
+                      <div className="ml-5 w-0 flex-1">
+                        <dl>
+                          <dt className="text-sm font-medium text-gray-500 truncate">
+                            {stat.label}
+                          </dt>
+                          <dd className="flex items-baseline">
+                            <div className="text-2xl font-semibold text-gray-900">
+                              {stat.value}
+                            </div>
+                            {stat.change && stat.change !== '0' && stat.change !== '0%' && (
+                              <div className={`ml-2 flex items-baseline text-sm font-semibold ${
+                                stat.changeType === 'positive' ? 'text-green-600' : 
+                                stat.changeType === 'negative' ? 'text-red-600' : 'text-gray-500'
+                              }`}>
+                                {stat.changeType === 'positive' && stat.change.startsWith('+') ? '' : 
+                                 stat.changeType === 'negative' ? '' : ''}
+                                {stat.change}
+                              </div>
+                            )}
+                          </dd>
+                        </dl>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
 
             {/* Quick Actions */}
             <div className="bg-white rounded-lg shadow-sm border p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h2>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold text-gray-900">Quick Actions</h2>
+                {!statsLoading && !statsError && (
+                  <div className="flex items-center text-sm text-green-600">
+                    <div className="w-2 h-2 bg-green-400 rounded-full mr-2 animate-pulse"></div>
+                    Live Data
+                  </div>
+                )}
+              </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 {quickActions.map((action, index) => (
                   <button
