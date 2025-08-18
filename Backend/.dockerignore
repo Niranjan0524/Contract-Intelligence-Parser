@@ -1,13 +1,41 @@
-__pycache__
-*.pyc
-*.pyo
-*.pyd
-.git
-.gitignore
-README.md
-.env
-.venv
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
 venv/
-.pytest_cache
-node_modules
+.venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
 .DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# Docker
+Dockerfile
+.dockerignore
+docker-compose.yml
+
+# Documentation
+*.md
+README.md
+
+# Environment files (we'll provide externally)
+.env
+
+# Logs
+*.log
+
+# Test files
+test_*.py
