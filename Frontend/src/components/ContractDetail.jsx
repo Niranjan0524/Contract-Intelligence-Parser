@@ -3,8 +3,11 @@ import api, { ApiError } from '../services/api';
 
 const ContractDetail = ({ contract, onBack }) => {
   const [contractData, setContractData] = useState(null);
+  const [rawData, setRawData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [rawDataLoading, setRawDataLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showRawData, setShowRawData] = useState(false);
 
   useEffect(() => {
     if (contract) {
@@ -16,7 +19,8 @@ const ContractDetail = ({ contract, onBack }) => {
     try {
       setLoading(true);
       setError('');
-      const data = await api.getContract(contract.contract_id);
+      // ✅ Fetch contract data with raw data included
+      const data = await api.getContract(contract.contract_id, { include_raw: true });
       setContractData(data);
     } catch (err) {
       if (err instanceof ApiError) {
@@ -27,6 +31,29 @@ const ContractDetail = ({ contract, onBack }) => {
       console.error('Error fetching contract data:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // ✅ Function to load raw data separately (for better performance)
+  const fetchRawData = async () => {
+    if (rawData) return; // Already loaded
+    
+    try {
+      setRawDataLoading(true);
+      const data = await api.getContractRawData(contract.contract_id);
+      setRawData(data);
+    } catch (err) {
+      console.error('Error fetching raw data:', err);
+      setRawData({ error: 'Failed to load raw data' });
+    } finally {
+      setRawDataLoading(false);
+    }
+  };
+
+  const handleToggleRawData = () => {
+    setShowRawData(!showRawData);
+    if (!showRawData && !rawData && !contractData?.raw_text) {
+      fetchRawData();
     }
   };
 
@@ -300,21 +327,130 @@ const ContractDetail = ({ contract, onBack }) => {
       </div>
 
       {/* Raw Data Section (Collapsible) */}
-      <details className="bg-white rounded-lg shadow-sm border">
-        <summary className="px-6 py-4 cursor-pointer hover:bg-gray-50 focus:outline-none focus:bg-gray-50">
+      <div className="bg-white rounded-lg shadow-sm border">
+        <div 
+          className="px-6 py-4 cursor-pointer hover:bg-gray-50 focus:outline-none focus:bg-gray-50 border-b border-gray-200"
+          onClick={handleToggleRawData}
+        >
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-semibold text-gray-900">Raw Extracted Data</h3>
-            <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
+            <div className="flex items-center space-x-2">
+              {(contractData?.raw_extracted_data?.text_length || contractData?.raw_text?.length) && (
+                <span className="text-sm text-gray-500">
+                  {(contractData?.raw_extracted_data?.text_length || contractData?.raw_text?.length).toLocaleString()} characters
+                </span>
+              )}
+              <svg 
+                className={`w-5 h-5 text-gray-400 transition-transform ${showRawData ? 'rotate-180' : ''}`} 
+                fill="none" 
+                stroke="currentColor" 
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </div>
           </div>
-        </summary>
-        <div className="px-6 pb-6 pt-2 border-t border-gray-200">
-          <pre className="text-xs text-gray-600 bg-gray-50 p-4 rounded-md overflow-auto max-h-96">
-            {JSON.stringify(contractData.raw_text, null, 2)}
-          </pre>
         </div>
-      </details>
+        
+        {showRawData && (
+          <div className="px-6 pb-6 pt-4">
+            {rawDataLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                <span className="ml-2 text-gray-600">Loading raw data...</span>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {/* Raw Text */}
+                <div>
+                  <h4 className="font-medium text-gray-900 mb-2">Extracted Text</h4>
+                  <div className="bg-gray-50 rounded-md border">
+                    <div className="p-3 border-b border-gray-200 bg-gray-100 rounded-t-md">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium text-gray-700">Plain Text Content</span>
+                        <span className="text-xs text-gray-500">
+                          {(contractData?.raw_text || contractData?.raw_extracted_data?.full_text || '').length.toLocaleString()} characters
+                        </span>
+                      </div>
+                    </div>
+                    <div className="p-4">
+                      {(contractData?.raw_text || contractData?.raw_extracted_data?.full_text) ? (
+                        <pre className="text-xs text-gray-700 whitespace-pre-wrap font-mono leading-relaxed max-h-96 overflow-auto">
+                          {contractData?.raw_text || contractData?.raw_extracted_data?.full_text}
+                        </pre>
+                      ) : (
+                        <p className="text-sm text-gray-500">No raw text available</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Extracted Entities Summary */}
+                {contractData?.raw_extracted_data?.extracted_entities && (
+                  <div>
+                    <h4 className="font-medium text-gray-900 mb-2">Extraction Summary</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="bg-blue-50 p-3 rounded-md">
+                        <div className="text-sm font-medium text-blue-900">Persons Found</div>
+                        <div className="text-lg font-semibold text-blue-700">
+                          {contractData.raw_extracted_data.extracted_entities.persons?.length || 0}
+                        </div>
+                      </div>
+                      <div className="bg-green-50 p-3 rounded-md">
+                        <div className="text-sm font-medium text-green-900">Money Entities</div>
+                        <div className="text-lg font-semibold text-green-700">
+                          {contractData.raw_extracted_data.extracted_entities.money?.length || 0}
+                        </div>
+                      </div>
+                      <div className="bg-purple-50 p-3 rounded-md">
+                        <div className="text-sm font-medium text-purple-900">Date References</div>
+                        <div className="text-lg font-semibold text-purple-700">
+                          {contractData.raw_extracted_data.extracted_entities.dates?.length || 0}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Processing Metadata */}
+                {contractData?.raw_extracted_data?.processing_metadata && (
+                  <div>
+                    <h4 className="font-medium text-gray-900 mb-2">Processing Information</h4>
+                    <div className="bg-gray-50 p-4 rounded-md text-sm">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <span className="font-medium text-gray-600">Extraction Time:</span>
+                          <p className="text-gray-800">
+                            {new Date(contractData.raw_extracted_data.processing_metadata.extraction_timestamp).toLocaleString()}
+                          </p>
+                        </div>
+                        <div>
+                          <span className="font-medium text-gray-600">Text Length:</span>
+                          <p className="text-gray-800">
+                            {contractData.raw_extracted_data.text_length?.toLocaleString() || 'Unknown'} characters
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* JSON Data (Collapsible) */}
+                <details className="border border-gray-200 rounded-md">
+                  <summary className="px-4 py-2 bg-gray-50 cursor-pointer hover:bg-gray-100 rounded-t-md">
+                    <span className="font-medium text-gray-700">Raw JSON Data</span>
+                  </summary>
+                  <div className="p-4 border-t border-gray-200">
+                    <pre className="text-xs text-gray-600 bg-white p-3 rounded border overflow-auto max-h-64">
+                      {JSON.stringify(contractData?.raw_extracted_data || {}, null, 2)}
+                    </pre>
+                  </div>
+                </details>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 };

@@ -65,8 +65,14 @@ const api = {
   },
 
   // Get specific contract details
-  getContract: async (contractId) => {
-    const response = await fetch(`${API_BASE_URL}/contracts/${contractId}`);
+  getContract: async (contractId, options = {}) => {
+    const params = new URLSearchParams();
+    if (options.include_raw) {
+      params.append('include_raw', 'true');
+    }
+    
+    const url = `${API_BASE_URL}/contracts/${contractId}${params.toString() ? '?' + params.toString() : ''}`;
+    const response = await fetch(url);
     return handleResponse(response);
   },
 
@@ -88,6 +94,12 @@ const api = {
       );
     }
     return response.blob();
+  },
+
+  // ✅ NEW: Get raw extracted data for a contract
+  getContractRawData: async (contractId) => {
+    const response = await fetch(`${API_BASE_URL}/contracts/${contractId}/raw`);
+    return handleResponse(response);
   }
 };
 

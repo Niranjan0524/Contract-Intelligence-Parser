@@ -15,17 +15,46 @@ const ContractList = ({ onSelectContract, refreshTrigger }) => {
 
   const handleDownloadContract = async (event, contract) => {
     event.stopPropagation();
+    
     try {
-      const response = await api.downloadContract(contract.contract_id);
-      const url = window.URL.createObjectURL(response);
+      console.log('Downloading contract:', contract.contract_id);
+      
+      // ✅ Get the blob from API
+      const blob = await api.downloadContract(contract.contract_id);
+      
+      // ✅ Validate blob
+      if (!blob || blob.size === 0) {
+        throw new Error('Downloaded file is empty');
+      }
+      
+      // ✅ Create URL directly from blob (no need for new Blob())
+      const url = window.URL.createObjectURL(blob);
+      
+      // ✅ Create download link
       const a = document.createElement('a');
       a.href = url;
-      a.download = contract.filename || 'contract.pdf';
+      
+      // ✅ Use original filename with fallback
+      const filename = contract.original_filename || 
+                      contract.filename || 
+                      `contract-${contract.contract_id.slice(0, 8)}.pdf`;
+      a.download = filename;
+      
+      // ✅ Trigger download
       document.body.appendChild(a);
       a.click();
-      a.remove();
+      
+      // ✅ Cleanup
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+      
+      console.log('Download completed successfully:', filename);
+      
     } catch (error) {
       console.error('Failed to download contract:', error);
+      
+      // ✅ Show user-friendly error message
+      alert(`Download failed: ${error.message}`);
     }
   };
 
@@ -207,13 +236,6 @@ const ContractList = ({ onSelectContract, refreshTrigger }) => {
             <div
               key={contract._id}
               className="px-6 py-4 hover:bg-gray-50 cursor-pointer transition-colors duration-150"
-              onClick={() => {
-                console.log("Contract clicked:", contract);
-                console.log("onSelectContract function:", onSelectContract);
-                if (onSelectContract) {
-                  onSelectContract(contract);
-                }
-              }}
             >
               <div className="flex items-center justify-between">
                 <div className="flex-1 min-w-0">
@@ -254,12 +276,24 @@ const ContractList = ({ onSelectContract, refreshTrigger }) => {
                     {contract.status.charAt(0).toUpperCase() +
                       contract.status.slice(1)}
                   </span>
-                  <FaDownload onClick={() => handleDownloadContract(event, contract)}/>
+                  <FaDownload
+                    onClick={() => handleDownloadContract(event, contract)}
+                  />
                   <svg
                     className="h-5 w-5 text-gray-400"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
+                    onClick={() => {
+                      console.log("Contract clicked:", contract);
+                      console.log(
+                        "onSelectContract function:",
+                        onSelectContract
+                      );
+                      if (onSelectContract) {
+                        onSelectContract(contract);
+                      }
+                    }}
                   >
                     <path
                       strokeLinecap="round"

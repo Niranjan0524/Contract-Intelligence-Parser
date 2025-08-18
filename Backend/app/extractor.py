@@ -229,7 +229,38 @@ def score_fields(fields):
     
     return min(score, 100)  # Cap at 100
 
-# Main processing function
+# ✅ NEW: Function to create raw data summary
+def create_raw_data_summary(text, entities, fields):
+    """Create a comprehensive raw data summary for storage."""
+    raw_data = {
+        "full_text": text,
+        "text_length": len(text),
+        "extracted_entities": entities,
+        "regex_matches": {},
+        "processing_metadata": {
+            "extraction_timestamp": datetime.now(timezone.utc).isoformat(),
+            "text_preview": text[:500] + "..." if len(text) > 500 else text,
+            "entity_counts": {
+                "persons": len(entities.get("persons", [])),
+                "dates": len(entities.get("dates", [])),
+                "money": len(entities.get("money", []))
+            }
+        }
+    }
+    
+    # Add regex extraction details
+    if fields.get("account_information", {}).get("emails"):
+        raw_data["regex_matches"]["emails"] = fields["account_information"]["emails"]
+    
+    if fields.get("financial_details", {}).get("amounts"):
+        raw_data["regex_matches"]["amounts"] = fields["financial_details"]["amounts"]
+    
+    if fields.get("payment_structure", {}).get("terms"):
+        raw_data["regex_matches"]["payment_terms"] = fields["payment_structure"]["terms"]
+    
+    return raw_data
+
+# Main processing function - UPDATED
 def process_contract(pdf_path):
     """Extract, analyze, score, and store contract info from PDF."""
     result = {
@@ -239,6 +270,7 @@ def process_contract(pdf_path):
         "payment_structure": {},
         "revenue_classification": {},
         "service_level_agreements": {},
+        "raw_extracted_data": {},  # ✅ NEW: Field for raw data
         "score": 0,
         "created_at": datetime.now(timezone.utc),
         "file_path": pdf_path,
@@ -261,6 +293,12 @@ def process_contract(pdf_path):
         
         # Extract structured fields
         fields = extract_fields(text)
+        
+        # ✅ NEW: Create comprehensive raw data
+        raw_data = create_raw_data_summary(text, entities, fields)
+        result["raw_extracted_data"] = raw_data
+        
+        print(f"[INFO] Raw data stored - Text length: {len(text)}, Entities: {len(entities['persons'])} persons")
         
         # Merge NER results into structured fields
         if entities["persons"]:
@@ -286,6 +324,7 @@ def process_contract(pdf_path):
             "amounts": len(fields.get("financial_details", {}).get("amounts", [])),
             "payment_terms": len(fields.get("payment_structure", {}).get("terms", [])),
             "sla_terms": len(fields.get("service_level_agreements", {}).get("sla_terms", [])),
+            "raw_text_length": len(text)  # ✅ NEW: Raw text length in summary
         }
         print(f"[INFO] Extraction summary: {summary}")
         
@@ -294,10 +333,20 @@ def process_contract(pdf_path):
         result["processing_status"] = "failed"
         result["error"] = str(e)
         result["score"] = 0
+        # ✅ Even on failure, store what we could extract
+        if 'text' in locals():
+            result["raw_extracted_data"] = {
+                "full_text": text,
+                "text_length": len(text),
+                "error_during_processing": str(e),
+                "extraction_timestamp": datetime.now(timezone.utc).isoformat()
+            }
     
     return result
 
 if __name__ == "__main__":
     import sys
     pdf = sys.argv[1] if len(sys.argv) > 1 else "sample_contract.pdf"
-    process_contract(pdf)
+    result = process_contract(pdf)
+    print(f"\n[RESULT] Raw data keys: {list(result.get('raw_extracted_data', {}).keys())}")
+    print(f"[RESULT] Text length: {result.get('raw_extracted_data', {}).get('text_length', 0)}")

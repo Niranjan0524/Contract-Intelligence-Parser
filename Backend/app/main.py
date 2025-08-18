@@ -162,8 +162,8 @@ def get_contracts(
         raise HTTPException(status_code=500, detail="Failed to retrieve contracts")
 
 @app.get("/contracts/{contract_id}")
-def get_contract_details(contract_id: str):
-    """Get detailed contract information including extracted data."""
+def get_contract_details(contract_id: str, include_raw: bool = False):
+    """Get detailed contract information including extracted data, optionally include raw data."""
     doc = contracts_collection.find_one({"contract_id": contract_id}, {"_id": 0})
     if not doc:
         raise HTTPException(status_code=404, detail="Contract not found.")
@@ -220,6 +220,18 @@ def get_contract_details(contract_id: str):
         }
     }
     
+    # ✅ NEW: Option to include or exclude raw data for performance
+    if include_raw and "raw_extracted_data" in doc:
+        result["raw_extracted_data"] = doc["raw_extracted_data"]
+    elif "raw_extracted_data" in doc:
+        # Keep only summary info, remove full text for performance
+        raw_data = doc["raw_extracted_data"]
+        result["raw_extracted_data"] = {
+            "text_length": raw_data.get("text_length", 0),
+            "processing_metadata": raw_data.get("processing_metadata", {}),
+            "entity_counts": raw_data.get("processing_metadata", {}).get("entity_counts", {})
+        }
+    
     print(f"[DEBUG] Returning contract data with score: {result['score']}")
     return result
 
@@ -260,6 +272,44 @@ def get_contract_status(contract_id: str):
     
     print(f"[DEBUG] Status check for contract {contract_id}: {status} ({progress_percentage}%)")
     return result
+
+# ✅ NEW: Endpoint to get raw extracted data only
+@app.get("/contracts/{contract_id}/raw")
+def get_contract_raw_data(contract_id: str):
+    """Get only the raw extracted data for a contract."""
+    try:
+        contract = contracts_collection.find_one(
+            {"contract_id": contract_id}, 
+            {"raw_extracted_data": 1, "original_filename": 1, "status": 1, "_id": 0}
+        )
+        if not contract:
+            raise HTTPException(status_code=404, detail="Contract not found")
+        
+        if contract.get("status") != "completed":
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Contract processing not completed. Current status: {contract.get('status', 'unknown')}"
+            )
+        
+        raw_data = contract.get("raw_extracted_data", {})
+        if not raw_data:
+            raise HTTPException(status_code=404, detail="No raw extracted data found for this contract")
+        
+        # Add contract metadata for context
+        result = {
+            "contract_id": contract_id,
+            "original_filename": contract.get("original_filename", "unknown.pdf"),
+            "raw_extracted_data": raw_data
+        }
+        
+        print(f"[INFO] Retrieved raw data for contract {contract_id}, text length: {raw_data.get('text_length', 0)}")
+        return result
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[ERROR] Failed to retrieve raw data for contract {contract_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve raw data: {str(e)}")
 
 @app.get("/contracts/{contract_id}/download")
 def download_contract(contract_id: str):
