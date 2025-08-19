@@ -8,6 +8,48 @@ const ContractList = ({ onSelectContract, refreshTrigger }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('created_at');
   const [sortOrder, setSortOrder] = useState('desc');
+  const [processingContracts, setProcessingContracts] = useState(new Set());
+
+  // ✅ Auto-polling for processing contracts
+  useEffect(() => {
+    let interval = null;
+    
+    if (processingContracts.size > 0) {
+      console.log(`Starting polling for ${processingContracts.size} processing contracts`);
+      interval = setInterval(async () => {
+        console.log('Checking status for processing contracts...');
+        
+        for (const contractId of processingContracts) {
+          try {
+            const statusData = await api.getContractStatus(contractId);
+            
+            if (statusData.status === 'completed' || statusData.status === 'failed') {
+              console.log(`Contract ${contractId} finished processing with status: ${statusData.status}`);
+              
+              // Contract finished processing, remove from tracking
+              setProcessingContracts(prev => {
+                const newSet = new Set(prev);
+                newSet.delete(contractId);
+                return newSet;
+              });
+              
+              // Refresh contracts list
+              fetchContracts();
+            }
+          } catch (error) {
+            console.error(`Error checking status for ${contractId}:`, error);
+          }
+        }
+      }, 3000); // Check every 3 seconds
+    }
+    
+    return () => {
+      if (interval) {
+        console.log('Clearing polling interval');
+        clearInterval(interval);
+      }
+    };
+  }, [processingContracts]);
 
   useEffect(() => {
     fetchContracts();
@@ -61,8 +103,26 @@ const ContractList = ({ onSelectContract, refreshTrigger }) => {
   const fetchContracts = async () => {
     try {
       setLoading(true);
-      const data = await api.getContracts();
+      const data = await api.getContracts({
+        sortBy: 'created_at',
+        sortOrder: 'desc'
+      });
+      
       setContracts(data.contracts || []);
+      
+      // ✅ Track which contracts are still processing
+      const processing = new Set(
+        (data.contracts || [])
+          .filter(contract => contract.status === 'processing')
+          .map(contract => contract.contract_id)
+      );
+      
+      setProcessingContracts(processing);
+      
+      if (processing.size > 0) {
+        console.log(`Found ${processing.size} contracts still processing:`, [...processing]);
+      }
+      
     } catch (error) {
       console.error('Failed to fetch contracts:', error);
       setContracts([]);
@@ -160,7 +220,18 @@ const ContractList = ({ onSelectContract, refreshTrigger }) => {
     <div className="bg-white rounded-lg shadow-sm border">
       <div className="px-6 py-4 border-b border-gray-200">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0">
-          <h2 className="text-lg font-semibold text-gray-900">Contract List</h2>
+          <div className="flex items-center space-x-2">
+            <h2 className="text-lg font-semibold text-gray-900">Contract List</h2>
+            {/* ✅ Polling indicator */}
+            {processingContracts.size > 0 && (
+              <div className="flex items-center space-x-1 px-2 py-1 bg-blue-50 rounded-full">
+                <div className="animate-pulse rounded-full h-2 w-2 bg-blue-500"></div>
+                <span className="text-xs text-blue-600 font-medium">
+                  {processingContracts.size} processing
+                </span>
+              </div>
+            )}
+          </div>
 
           <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3">
             {/* Search */}

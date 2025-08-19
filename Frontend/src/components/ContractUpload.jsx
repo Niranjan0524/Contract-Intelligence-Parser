@@ -1,11 +1,49 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import api, { ApiError } from '../services/api';
 
 const ContractUpload = ({ onUploadSuccess }) => {
   const [dragActive, setDragActive] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [processing, setProcessing] = useState(false);
+  const [uploadedContractId, setUploadedContractId] = useState(null);
   const [error, setError] = useState('');
   const inputRef = useRef();
+
+  // ✅ Poll for processing status after upload
+  useEffect(() => {
+    let interval = null;
+    
+    if (uploadedContractId && processing) {
+      console.log(`Starting status polling for uploaded contract: ${uploadedContractId}`);
+      interval = setInterval(async () => {
+        try {
+          const statusData = await api.getContractStatus(uploadedContractId);
+          console.log(`Contract ${uploadedContractId} status:`, statusData.status);
+          
+          if (statusData.status === 'completed') {
+            setProcessing(false);
+            setUploadedContractId(null);
+            console.log(`Contract ${uploadedContractId} processing completed successfully`);
+            onUploadSuccess && onUploadSuccess();
+          } else if (statusData.status === 'failed') {
+            setProcessing(false);
+            setUploadedContractId(null);
+            setError('Contract processing failed');
+            console.error(`Contract ${uploadedContractId} processing failed`);
+          }
+        } catch (error) {
+          console.error('Error checking upload status:', error);
+        }
+      }, 2000); // Check every 2 seconds
+    }
+    
+    return () => {
+      if (interval) {
+        console.log('Clearing upload status polling interval');
+        clearInterval(interval);
+      }
+    };
+  }, [uploadedContractId, processing, onUploadSuccess]);
 
   const handleFiles = async (files) => {
     const file = files[0];
@@ -28,14 +66,20 @@ const ContractUpload = ({ onUploadSuccess }) => {
 
     try {
       const result = await api.uploadContract(file);
-      onUploadSuccess && onUploadSuccess(result);
+      
+      // ✅ Start tracking the processing status
+      setUploadedContractId(result.contract_id);
+      setUploading(false);
+      setProcessing(true);
+      
+      console.log(`File uploaded successfully. Tracking contract: ${result.contract_id}`);
+      
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err.message);
       } else {
         setError('Upload failed. Please try again.');
       }
-    } finally {
       setUploading(false);
     }
   };
@@ -79,7 +123,7 @@ const ContractUpload = ({ onUploadSuccess }) => {
         className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors duration-200 ${
           dragActive
             ? 'border-blue-500 bg-blue-50'
-            : uploading
+            : uploading || processing
             ? 'border-gray-300 bg-gray-50'
             : 'border-gray-300 hover:border-blue-400 hover:bg-gray-50 cursor-pointer'
         }`}
@@ -87,7 +131,7 @@ const ContractUpload = ({ onUploadSuccess }) => {
         onDragLeave={handleDragOut}
         onDragOver={handleDrag}
         onDrop={handleDrop}
-        onClick={() => !uploading && inputRef.current?.click()}
+        onClick={() => !uploading && !processing && inputRef.current?.click()}
       >
         <input
           ref={inputRef}
@@ -95,7 +139,7 @@ const ContractUpload = ({ onUploadSuccess }) => {
           accept=".pdf"
           onChange={(e) => handleFiles(e.target.files)}
           className="hidden"
-          disabled={uploading}
+          disabled={uploading || processing}
         />
 
         <div className="space-y-4">
@@ -103,6 +147,12 @@ const ContractUpload = ({ onUploadSuccess }) => {
             <div className="flex flex-col items-center space-y-2">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
               <p className="text-sm text-gray-600">Uploading...</p>
+            </div>
+          ) : processing ? (
+            <div className="flex flex-col items-center space-y-2">
+              <div className="animate-pulse rounded-full h-8 w-8 bg-blue-600"></div>
+              <p className="text-sm text-gray-600">Processing contract...</p>
+              <p className="text-xs text-gray-500">This may take a few moments</p>
             </div>
           ) : (
             <>
@@ -130,6 +180,15 @@ const ContractUpload = ({ onUploadSuccess }) => {
       {error && (
         <div className="mt-4 bg-red-50 border border-red-200 rounded-md p-3">
           <p className="text-sm text-red-600">{error}</p>
+        </div>
+      )}
+      
+      {/* ✅ Processing success message */}
+      {processing && (
+        <div className="mt-4 bg-blue-50 border border-blue-200 rounded-md p-3">
+          <p className="text-sm text-blue-600">
+            Contract uploaded successfully! Processing in background...
+          </p>
         </div>
       )}
     </div>

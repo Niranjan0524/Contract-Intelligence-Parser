@@ -15,11 +15,19 @@ const Dashboard = ({ user }) => {
 
   const handleUploadSuccess = (result) => {
     console.log('Upload successful:', result);
+    // ✅ Trigger refresh of contract list
     setRefreshTrigger(prev => prev + 1);
     // Refetch stats to update dashboard
     refetchStats();
     // Show success message or redirect to list view
     setCurrentView('list');
+  };
+
+  // ✅ Additional handler for when contracts finish processing
+  const handleContractProcessed = () => {
+    console.log('Contract processing completed, refreshing data');
+    setRefreshTrigger(prev => prev + 1);
+    refetchStats();
   };
 
   const handleContractSelect = (contract) => {
